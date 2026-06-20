@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Loader2, Sparkles, Save, X, Plus } from "lucide-react";
+import { ImagePlus, Loader2, Sparkles, Save, X, Plus, FileUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { QuestionEditor, type EditableQuestion } from "@/components/admin/question-editor";
 import { Button } from "@/components/ui/button";
@@ -17,18 +17,32 @@ function uid() {
   return typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `q${Math.random()}`;
 }
 
+const VALID_TYPES = ["single_choice", "multiple_choice", "true_false", "fill_blank", "fill_text"];
+
+function asStrArr(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map((x) => String(x));
+  if (v === null || v === undefined || v === "") return [];
+  return [String(v)];
+}
+
+// 同時用於 AI 解析結果（已驗證）與貼上的 JSON（可能不乾淨），所以做防呆。
 function toEditable(q: ParsedQuestion): EditableQuestion {
+  const opts = Array.isArray(q.options)
+    ? q.options
+        .filter((o) => o && o.key != null)
+        .map((o) => ({ key: String(o.key), text: String(o.text ?? "") }))
+    : [];
   return {
     id: uid(),
-    type: q.type,
-    stem: q.stem ?? "",
-    passage: q.passage ?? "",
-    options: q.options ?? [],
-    answer: q.answer ?? [],
-    explanation: q.explanation ?? "",
-    chapter: q.chapter ?? "",
-    skill_tags: q.skill_tags ?? [],
-    points: q.points || 1,
+    type: VALID_TYPES.includes(q.type) ? q.type : "single_choice",
+    stem: typeof q.stem === "string" ? q.stem : String(q.stem ?? ""),
+    passage: typeof q.passage === "string" ? q.passage : "",
+    options: opts,
+    answer: asStrArr(q.answer),
+    explanation: typeof q.explanation === "string" ? q.explanation : "",
+    chapter: typeof q.chapter === "string" ? q.chapter : "",
+    skill_tags: asStrArr(q.skill_tags),
+    points: Number(q.points) > 0 ? Math.floor(Number(q.points)) : 1,
   };
 }
 
@@ -83,6 +97,8 @@ export function UploadWizard() {
   const [questions, setQuestions] = useState<EditableQuestion[]>([]);
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [jsonInput, setJsonInput] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [proctorPassword, setProctorPassword] = useState(DEFAULT_PROCTOR_PASSWORD);
@@ -149,6 +165,47 @@ export function UploadWizard() {
       clearTimeout(tid);
       setParsing(false);
     }
+  }
+
+  function handleImportJson() {
+    setImportError(null);
+    const raw = jsonInput.trim();
+    if (!raw) {
+      setImportError("請先貼上 JSON。");
+      return;
+    }
+    let text = raw;
+    const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) text = fence[1].trim();
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      const m = text.match(/[{[][\s\S]*[}\]]/);
+      if (m) {
+        try {
+          parsed = JSON.parse(m[0]);
+        } catch {
+          parsed = null;
+        }
+      }
+    }
+    if (!parsed || typeof parsed !== "object") {
+      setImportError("JSON 解析失敗，請確認貼上的是有效 JSON（含 questions 陣列）。");
+      return;
+    }
+    const examObj = Array.isArray(parsed)
+      ? { questions: parsed as unknown[] }
+      : (parsed as { title?: unknown; subject?: unknown; questions?: unknown });
+    const list = Array.isArray(examObj.questions) ? examObj.questions : [];
+    if (list.length === 0) {
+      setImportError("找不到題目（questions 陣列為空或缺少）。");
+      return;
+    }
+    if (!title && typeof examObj.title === "string") setTitle(examObj.title);
+    if (!subject && typeof examObj.subject === "string") setSubject(examObj.subject);
+    setQuestions((prev) => [...prev, ...list.map((q) => toEditable(q as ParsedQuestion))]);
+    setJsonInput("");
   }
 
   async function handleSave() {
@@ -321,6 +378,30 @@ export function UploadWizard() {
           {parsing ? "AI 解析中…（約需數十秒）" : "AI 解析建題"}
         </Button>
         {parseError && <p className="mt-3 text-sm text-destructive">{parseError}</p>}
+
+        <div className="mt-5 border-t border-border pt-4">
+          <p className="mb-1 flex items-center gap-1.5 text-sm font-medium">
+            <FileUp className="size-4" /> 或：貼上 JSON 匯入
+          </p>
+          <p className="mb-2 text-xs text-muted-foreground">
+            在 claude.ai 用指令把考卷讀成 JSON 後貼到這裡，直接進審稿（不耗 API 額度）。
+          </p>
+          <Textarea
+            value={jsonInput}
+            onChange={(e) => setJsonInput(e.target.value)}
+            placeholder={'貼上 {"title":...,"subject":...,"questions":[...]}'}
+            className="min-h-28 font-mono text-xs"
+          />
+          {importError && <p className="mt-2 text-sm text-destructive">{importError}</p>}
+          <Button
+            variant="outline"
+            onClick={handleImportJson}
+            className="mt-2"
+            disabled={!jsonInput.trim()}
+          >
+            <FileUp className="size-4" /> 匯入 JSON
+          </Button>
+        </div>
       </section>
 
       {/* 題目 review */}

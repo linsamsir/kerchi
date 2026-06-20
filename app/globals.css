@@ -1,26 +1,157 @@
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * kerchi（考試 · 台語諧音）— 友善、像遊戲能力值的模擬考主題
+ * 主色 indigo、亮點 amber、柔和紙感背景、圓角卡片
+ */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-noto-sans-tc), "Noto Sans TC", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius: 0.875rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --background: #f5f6fb;
+  --foreground: #1d2033;
+
+  --card: #ffffff;
+  --card-foreground: #1d2033;
+
+  --popover: #ffffff;
+  --popover-foreground: #1d2033;
+
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eef0fe;
+
+  --secondary: #eef0f7;
+  --secondary-foreground: #2b2f44;
+
+  --muted: #eceef6;
+  --muted-foreground: #6b7191;
+
+  --accent: #f59e0b;
+  --accent-foreground: #3a2a00;
+
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #e3e6f0;
+  --input: #d8dcec;
+  --ring: #6366f1;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    font-family: var(--font-sans);
+  }
+  body {
+    background:
+      radial-gradient(1200px 600px at 100% -10%, #e9ecff 0%, transparent 55%),
+      radial-gradient(1000px 500px at -10% 0%, #fff4e0 0%, transparent 45%),
+      var(--background);
+    background-attachment: fixed;
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4, h5 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .kerchi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 2px rgba(29, 32, 51, 0.04), 0 8px 24px -16px rgba(29, 32, 51, 0.18);
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  }
+  .kerchi-card-hover:hover {
+    border-color: var(--primary);
+    box-shadow: 0 1px 2px rgba(79, 70, 229, 0.08), 0 12px 30px -16px rgba(79, 70, 229, 0.35);
+    transform: translateY(-2px);
+  }
+
+  /* 像獎章 / RPG 標籤的 chip */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border: 1px solid var(--border);
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+  .chip-primary {
+    border-color: transparent;
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+  .chip-accent {
+    border-color: transparent;
+    background: #fef3da;
+    color: #9a6400;
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+  }
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* 不希望考試中可以選取文字 / 拖曳 */
+.exam-noselect {
+  -webkit-user-select: none;
+  user-select: none;
 }

@@ -1,65 +1,139 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, FileText, History, Sparkles, Trophy } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { ExamCard } from "@/components/exam/exam-card";
+import { Button } from "@/components/ui/button";
+import { examMeta, gradeText, TONE_TEXT } from "@/lib/exam";
+import { pct } from "@/lib/utils";
+import type { Attempt, Exam } from "@/lib/types";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+async function getData() {
+  try {
+    const supabase = await createClient();
+    const [examsRes, attemptsRes] = await Promise.all([
+      supabase
+        .from("exams_with_counts")
+        .select("*")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(6),
+      supabase
+        .from("attempts")
+        .select("*, exams(title,subject,stage,semester,grade), profiles(display_name)")
+        .eq("status", "submitted")
+        .order("submitted_at", { ascending: false })
+        .limit(5),
+    ]);
+    return {
+      exams: (examsRes.data ?? []) as Exam[],
+      attempts: (attemptsRes.data ?? []) as (Attempt & {
+        exams: Exam | null;
+        profiles: { display_name: string | null } | null;
+      })[],
+      configured: true,
+    };
+  } catch {
+    return { exams: [], attempts: [], configured: false };
+  }
+}
+
+export default async function Home() {
+  const { exams, attempts, configured } = await getData();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="mx-auto max-w-6xl px-4 py-10">
+      {/* Hero */}
+      <section className="kerchi-card overflow-hidden p-8 sm:p-12">
+        <div className="flex flex-col items-start gap-4">
+          <span className="chip chip-primary">
+            <Sparkles className="size-3" /> 線上模擬考
+          </span>
+          <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+            開始考試吧 — <span className="text-primary">kerchi</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="max-w-2xl text-muted-foreground">
+            登入帳號就能進行模擬考，全程專注作答；交卷後自動評分，告訴你哪裡錯、屬於哪個章節，
+            還會用能力值雷達圖呈現你的強項與弱項。
           </p>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild size="lg">
+              <Link href="/exams">
+                <FileText className="size-4" /> 前往題庫
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/history">
+                <History className="size-4" /> 答題記錄
+              </Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {!configured && (
+        <div className="mt-6 rounded-[var(--radius)] border border-accent/40 bg-[#fff8ec] p-4 text-sm text-[#7a5200]">
+          <strong>尚未連上資料庫。</strong> 請建立 Supabase 專案、執行 <code>supabase/schema.sql</code>，
+          並把金鑰填到 <code>.env.local</code>（參考 <code>.env.local.example</code>）。
         </div>
-      </main>
+      )}
+
+      {/* 最新題庫 */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold">最新題庫</h2>
+          <Link href="/exams" className="flex items-center gap-1 text-sm text-primary hover:underline">
+            全部 <ArrowRight className="size-4" />
+          </Link>
+        </div>
+        {exams.length === 0 ? (
+          <p className="text-sm text-muted-foreground">還沒有題庫。請出題者到後台上傳考卷建立題庫。</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {exams.map((e) => (
+              <ExamCard key={e.id} exam={e} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 最近答題記錄 */}
+      {attempts.length > 0 && (
+        <section className="mt-10">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-bold">最近答題記錄</h2>
+            <Link href="/history" className="flex items-center gap-1 text-sm text-primary hover:underline">
+              更多 <ArrowRight className="size-4" />
+            </Link>
+          </div>
+          <div className="kerchi-card divide-y divide-border">
+            {attempts.map((a) => {
+              const g = gradeText(a.score);
+              return (
+                <Link
+                  key={a.id}
+                  href={`/history/${a.id}`}
+                  className="flex items-center gap-4 p-4 hover:bg-secondary/50"
+                >
+                  <Trophy className="size-5 shrink-0 text-accent" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">{a.exams?.title ?? "考卷"}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {a.profiles?.display_name ?? "某位同學"}
+                      {a.exams ? ` · ${examMeta(a.exams)}` : ""}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="tnum text-lg font-bold">{pct(a.score)}</div>
+                    <div className={`text-xs font-medium ${TONE_TEXT[g.tone]}`}>{g.label}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -63,8 +63,11 @@ cp .env.local.example .env.local
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API → Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 同上 → anon / public key |
 | `NEXT_PUBLIC_SITE_URL` | 開發用 `http://localhost:3000` |
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com)（拍照建題用，僅伺服器端） |
-| `ANTHROPIC_PARSE_MODEL` | 可留空，預設 `claude-sonnet-4-6`（要最省可用 `claude-haiku-4-5`） |
+| `PARSE_PROVIDER` | 解析來源：`gemini`（預設，有 `GOOGLE_API_KEY` 時）或 `anthropic` |
+| `GOOGLE_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey)（Gemini 拍照建題，建議；僅伺服器端） |
+| `GEMINI_PARSE_MODEL` | 可留空，預設 `gemini-2.5-flash` |
+| `ANTHROPIC_API_KEY` | （備援）[console.anthropic.com](https://console.anthropic.com)，僅伺服器端 |
+| `ANTHROPIC_PARSE_MODEL` | 可留空，預設 `claude-sonnet-4-6` |
 
 ### 4. 啟動
 ```bash
